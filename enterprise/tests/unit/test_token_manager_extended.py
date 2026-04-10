@@ -467,6 +467,88 @@ class TestRefreshBitbucketDataCenterToken:
                 )
 
 
+class TestRefreshGitLabToken:
+    """Tests for the _refresh_gitlab_token code path."""
+
+    @pytest.mark.asyncio
+    async def test_happy_path(self, token_manager):
+        """Credentials are sent in the POST body; response is parsed."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json.return_value = {
+            'access_token': 'new_gl_access',
+            'refresh_token': 'new_gl_refresh',
+            'expires_in': 7200,
+            'created_at': 1700000000,
+        }
+
+        with (
+            patch(
+                'server.auth.token_manager.GITLAB_TOKEN_URL',
+                'https://gitlab.example.com/oauth/token',
+            ),
+            patch(
+                'server.auth.token_manager.GITLAB_APP_CLIENT_ID',
+                'test_gl_client_id',
+            ),
+            patch(
+                'server.auth.token_manager.GITLAB_APP_CLIENT_SECRET',
+                'test_gl_client_secret',
+            ),
+            patch('httpx.AsyncClient') as mock_client_cls,
+        ):
+            mock_client = AsyncMock()
+            mock_client.post = AsyncMock(return_value=mock_response)
+            mock_client_cls.return_value.__aenter__ = AsyncMock(
+                return_value=mock_client
+            )
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            result = await token_manager._refresh_gitlab_token('old_refresh_token')
+
+        mock_client.post.assert_called_once_with(
+            'https://gitlab.example.com/oauth/token',
+            data={
+                'client_id': 'test_gl_client_id',
+                'client_secret': 'test_gl_client_secret',
+                'refresh_token': 'old_refresh_token',
+                'grant_type': 'refresh_token',
+            },
+        )
+
+        assert result['access_token'] == 'new_gl_access'
+        assert result['refresh_token'] == 'new_gl_refresh'
+
+    @pytest.mark.asyncio
+    async def test_http_error_propagates(self, token_manager):
+        """When raise_for_status() raises, the exception propagates to the caller."""
+        import httpx
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            '401 Unauthorized',
+            request=MagicMock(),
+            response=MagicMock(status_code=401),
+        )
+
+        with (
+            patch(
+                'server.auth.token_manager.GITLAB_TOKEN_URL',
+                'https://gitlab.example.com/oauth/token',
+            ),
+            patch('httpx.AsyncClient') as mock_client_cls,
+        ):
+            mock_client = AsyncMock()
+            mock_client.post = AsyncMock(return_value=mock_response)
+            mock_client_cls.return_value.__aenter__ = AsyncMock(
+                return_value=mock_client
+            )
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            with pytest.raises(httpx.HTTPStatusError):
+                await token_manager._refresh_gitlab_token('old_refresh_token')
+
+
 class TestOrgTokenMethods:
     """Test cases for store_org_token and load_org_token methods."""
 

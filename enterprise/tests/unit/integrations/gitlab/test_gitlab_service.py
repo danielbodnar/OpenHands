@@ -12,6 +12,39 @@ def gitlab_service():
     return SaaSGitLabService(external_auth_id='test_user_id')
 
 
+class TestSaaSGitLabServiceInit:
+    """Tests for SaaSGitLabService __init__ base_domain defaulting from GITLAB_HOST."""
+
+    def test_base_domain_defaults_to_gitlab_host(self):
+        """BASE_URL is set from GITLAB_HOST when base_domain is not provided."""
+        with patch(
+            'integrations.gitlab.gitlab_service.GITLAB_HOST', 'gitlab.example.com'
+        ):
+            service = SaaSGitLabService(external_auth_id='u1')
+
+        assert service.BASE_URL == 'https://gitlab.example.com/api/v4'
+
+    def test_explicit_base_domain_takes_precedence(self):
+        """Explicit base_domain parameter takes precedence over GITLAB_HOST."""
+        with patch(
+            'integrations.gitlab.gitlab_service.GITLAB_HOST', 'gitlab.example.com'
+        ):
+            service = SaaSGitLabService(
+                external_auth_id='u1', base_domain='other.host'
+            )
+
+        assert service.BASE_URL == 'https://other.host/api/v4'
+
+    def test_base_domain_none_when_default_gitlab_com(self):
+        """BASE_URL stays as default gitlab.com when GITLAB_HOST is 'gitlab.com'."""
+        with patch(
+            'integrations.gitlab.gitlab_service.GITLAB_HOST', 'gitlab.com'
+        ):
+            service = SaaSGitLabService(external_auth_id='u1')
+
+        assert service.BASE_URL == 'https://gitlab.com/api/v4'
+
+
 class TestGetUserResourcesWithAdminAccess:
     """Test cases for get_user_resources_with_admin_access method."""
 
