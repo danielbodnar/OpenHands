@@ -2,7 +2,6 @@ from contextlib import nullcontext
 from types import MappingProxyType
 
 from github import Auth, Github, GithubIntegration
-from lmnr import Laminar
 from integrations.github.data_collector import GitHubDataCollector
 from integrations.github.github_solvability import summarize_issue_solvability
 from integrations.github.github_view import (
@@ -30,6 +29,7 @@ from integrations.utils import (
 )
 from integrations.v1_utils import get_saas_user_auth
 from jinja2 import Environment, FileSystemLoader
+from lmnr import Laminar
 from pydantic import SecretStr
 from server.auth.auth_error import ExpiredError
 from server.auth.constants import GITHUB_APP_CLIENT_ID, GITHUB_APP_PRIVATE_KEY
@@ -404,13 +404,15 @@ class GithubManager(Manager[GithubViewType]):
                             name='github-resolver',
                             parent_span_context=laminar_span_context,
                         )
-                        Laminar.set_trace_metadata({
-                            'source': 'github',
-                            'repo': github_view.full_repo_name,
-                            'issue_number': str(github_view.issue_number),
-                            'username': user_info.username,
-                            'conversation_id': github_view.conversation_id,
-                        })
+                        Laminar.set_trace_metadata(
+                            {
+                                'source': 'github',
+                                'repo': github_view.full_repo_name,
+                                'issue_number': str(github_view.issue_number),
+                                'username': user_info.username,
+                                'conversation_id': github_view.conversation_id,
+                            }
+                        )
                         span_context = span
                     except Exception as e:
                         # Log Laminar setup failure but continue without tracing
