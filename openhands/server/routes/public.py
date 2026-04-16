@@ -1,6 +1,6 @@
 # Function migrated from the deprecated routes/public.py
 # This is used by the V1 config router to get LLM models
-from fastapi import Depends, Request
+from fastapi import Request
 
 from openhands.server.shared import config
 from openhands.utils.llm import ModelsResponse, get_supported_llm_models
