@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsService from "#/api/settings-service/settings-service.api";
 import { MOCK_DEFAULT_USER_SETTINGS } from "#/mocks/handlers";
@@ -49,6 +50,34 @@ describe("VerificationSettingsScreen", () => {
     await screen.findByTestId("verification-settings-screen");
 
     expect(screen.getByTestId("confirmation-mode-toggle")).toBeInTheDocument();
+  });
+
+  it("shows the security analyzer only in advanced view", async () => {
+    vi.spyOn(SettingsService, "getSettings").mockResolvedValue(
+      buildSettings({
+        conversation_settings: {
+          ...MOCK_DEFAULT_USER_SETTINGS.conversation_settings,
+          confirmation_mode: true,
+          security_analyzer: "llm",
+        },
+      }),
+    );
+
+    renderVerificationSettingsScreen();
+
+    await screen.findByTestId("verification-settings-screen");
+
+    await userEvent.click(screen.getByTestId("sdk-section-basic-toggle"));
+
+    expect(
+      screen.queryByTestId("security-analyzer-input"),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("sdk-section-advanced-toggle"));
+
+    expect(
+      await screen.findByTestId("security-analyzer-input"),
+    ).toBeInTheDocument();
   });
 });
 

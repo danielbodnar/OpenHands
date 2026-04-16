@@ -20,6 +20,7 @@ const VERIFICATION_SCHEMA_EXCLUDE_KEYS = new Set([
 
 function VerificationSettingsHeader({
   scope,
+  view,
   confirmationMode,
   securityAnalyzer,
   isConversationSettingsDisabled,
@@ -28,6 +29,7 @@ function VerificationSettingsHeader({
   renderTopContent,
 }: {
   scope: SettingsScope;
+  view: SdkSectionHeaderProps["view"];
   confirmationMode: boolean;
   securityAnalyzer: string | null;
   isConversationSettingsDisabled: boolean;
@@ -51,7 +53,7 @@ function VerificationSettingsHeader({
     [t],
   );
 
-  const showSecurityAnalyzer = confirmationMode;
+  const showSecurityAnalyzer = confirmationMode && view !== "basic";
 
   return (
     <div className="flex flex-col gap-6">
@@ -130,9 +132,10 @@ export function VerificationSettingsScreen({
   }, [settings?.confirmation_mode, settings?.security_analyzer]);
 
   const buildHeader = React.useCallback(
-    ({ isDisabled }: SdkSectionHeaderProps) => (
+    ({ isDisabled, view }: SdkSectionHeaderProps) => (
       <VerificationSettingsHeader
         scope={scope}
+        view={view}
         confirmationMode={confirmationMode}
         securityAnalyzer={securityAnalyzer}
         isConversationSettingsDisabled={isDisabled}
