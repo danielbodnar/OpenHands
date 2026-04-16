@@ -13,6 +13,8 @@ import { useConfig } from "#/hooks/query/use-config";
 import { useConversationStore } from "#/stores/conversation-store";
 import { useAgentState } from "#/hooks/use-agent-state";
 import { AgentState } from "#/types/agent-state";
+import { ChatMessage } from "../../features/chat/chat-message";
+import { PlanPreview } from "../../features/chat/plan-preview";
 import {
   ErrorEventMessage,
   UserAssistantEventMessage,
@@ -22,8 +24,6 @@ import {
   HookExecutionEventMessage,
 } from "./event-message-components";
 import { createSkillReadyEvent } from "./event-content-helpers/create-skill-ready-event";
-import { ChatMessage } from "../../features/chat/chat-message";
-import { PlanPreview } from "../../features/chat/plan-preview";
 import { shouldShowPlanPreview } from "./hooks/use-plan-preview-events";
 
 interface EventMessageProps {
