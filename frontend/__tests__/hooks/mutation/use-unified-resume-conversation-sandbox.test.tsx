@@ -85,10 +85,12 @@ describe("useUnifiedResumeConversationSandbox", () => {
     // Verify sandbox queries were invalidated
     const invalidateCalls = invalidateSpy.mock.calls.map((call) => call[0]);
     const sandboxInvalidation = invalidateCalls.find(
-      (call) => JSON.stringify(call?.queryKey) === JSON.stringify(["sandboxes"]),
+      (call) => call?.queryKey?.[0] === "sandboxes",
     );
     const vscodeInvalidation = invalidateCalls.find(
-      (call) => JSON.stringify(call?.queryKey) === JSON.stringify(["unified", "vscode_url"]),
+      (call) =>
+        call?.queryKey?.[0] === "unified" &&
+        call?.queryKey?.[1] === "vscode_url",
     );
 
     expect(sandboxInvalidation).toBeDefined();
