@@ -8,6 +8,7 @@ import {
   isUserMessageEvent,
   isPlanningFileEditorObservationEvent,
   isHookExecutionEvent,
+  isACPToolCallEvent,
 } from "#/types/v1/type-guards";
 import { useConfig } from "#/hooks/query/use-config";
 import { useConversationStore } from "#/stores/conversation-store";
@@ -20,6 +21,7 @@ import {
   GenericEventMessageWrapper,
   ThoughtEventMessage,
   HookExecutionEventMessage,
+  ACPToolCallEventMessage,
 } from "./event-message-components";
 import { createSkillReadyEvent } from "./event-content-helpers/create-skill-ready-event";
 import { PlanPreview } from "../../features/chat/plan-preview";
@@ -149,6 +151,11 @@ export function EventMessage({
   // Hook execution events
   if (isHookExecutionEvent(event)) {
     return <HookExecutionEventMessage event={event} />;
+  }
+
+  // ACP sub-agent tool call events (Claude Code, Codex, Gemini CLI, …)
+  if (isACPToolCallEvent(event)) {
+    return <ACPToolCallEventMessage event={event} />;
   }
 
   // Finish actions
