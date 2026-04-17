@@ -97,9 +97,11 @@ Create a `saas-rel-X.Y.Z` branch from the tagged commit for the SaaS deployment 
 
 #### Step 3: Images get tagged automatically
 
-Pushing a git tag `X.Y.Z` tags the existing images for that commit with `X.Y.Z`, `X.Y`, `X`, and `latest` — for both `ghcr.io/openhands/openhands` and `ghcr.io/openhands/enterprise-server`. Non-semver tags just get their literal name applied.
+Every push to `main` / `saas-rel-*` / `oss-rel-*` builds and publishes `ghcr.io/openhands/openhands` and `ghcr.io/openhands/enterprise-server` images for that commit (tagged by SHA, short SHA, and branch name).
 
-Requires the commit to already be built (i.e., the main build for that SHA has finished pushing). If you push the tag too early, the CI job fails loudly — re-run it from the Actions UI once the build completes.
+Pushing a git tag `X.Y.Z` then tags the images for that commit with `X.Y.Z`, `X.Y`, `X`, and `latest`. Non-semver tags just get their literal name applied.
+
+Requires the commit to already be built. If you push the tag too early, the retag CI job fails loudly — re-run it from the Actions UI once the build completes.
 
 ## Development: Pin SDK to an Unreleased Commit
 
