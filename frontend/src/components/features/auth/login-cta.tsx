@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
+import { trackEvent } from "#/api/analytics-service";
 import { Card } from "#/ui/card";
 import { CardTitle } from "#/ui/card-title";
 import { Typography } from "#/ui/typography";
 import { I18nKey } from "#/i18n/declaration";
 import { cn } from "#/utils/utils";
 import StackedIcon from "#/icons/stacked.svg?react";
-import { useClientAnalytics } from "#/hooks/use-client-analytics";
 
 type LoginCTAProps = {
   className?: string;
@@ -21,7 +21,6 @@ export function LoginCTA({
   source = "login_page",
 }: LoginCTAProps = {}) {
   const { t } = useTranslation();
-  const { trackSaasSelfhostedInquiry } = useClientAnalytics();
   const isDeviceVerifySource = source === "device_verify";
   const learnMoreButtonClassName = cn(
     "inline-flex items-center justify-center",
@@ -33,7 +32,10 @@ export function LoginCTA({
   );
 
   const handleLearnMoreClick = () => {
-    trackSaasSelfhostedInquiry({ location: source });
+    trackEvent({
+      event: "saas_selfhosted_inquiry",
+      properties: { location: source },
+    });
   };
 
   return (
