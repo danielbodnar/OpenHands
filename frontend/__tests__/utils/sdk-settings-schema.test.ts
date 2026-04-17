@@ -263,7 +263,7 @@ describe("sdk settings schema helpers", () => {
     });
   });
 
-  it("omits fields outside the selected view from the save payload", () => {
+  it("resets fields outside the selected view back to schema defaults", () => {
     const schema = structuredClone(BASE_SETTINGS.agent_settings_schema!);
     schema.sections[0].fields.push({
       key: "llm.timeout",
@@ -306,8 +306,11 @@ describe("sdk settings schema helpers", () => {
     expect(buildSdkSettingsPayloadForView(schema, values, dirty, "basic")).toEqual({
       llm: {
         model: "anthropic/claude-sonnet-4-20250514",
+        timeout: 30,
+        litellm_extra_body: {},
       },
-      critic: { enabled: true },
+      critic: { enabled: true, mode: "finish_and_message" },
+      mcp_config: null,
     });
 
     expect(
@@ -316,8 +319,10 @@ describe("sdk settings schema helpers", () => {
       llm: {
         model: "anthropic/claude-sonnet-4-20250514",
         timeout: 90,
+        litellm_extra_body: {},
       },
-      critic: { enabled: true },
+      critic: { enabled: true, mode: "finish_and_message" },
+      mcp_config: null,
     });
 
     expect(buildSdkSettingsPayloadForView(schema, values, dirty, "all")).toEqual({
