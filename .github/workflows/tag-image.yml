@@ -33,13 +33,23 @@ jobs:
           # Docker tags can't contain "/" — sanitize to match how metadata-action
           # handles ref names elsewhere in the pipeline.
           safe_tag="${TAG//\//-}"
+          new_tags=("$safe_tag")
+          # Semver tags (X.Y.Z) also get X.Y, X, and latest aliases.
+          if [[ $TAG =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            major="${TAG%%.*}"
+            minor="${TAG%.*}"
+            new_tags+=("$minor" "$major" "latest")
+          fi
           for image in ghcr.io/openhands/openhands ghcr.io/openhands/enterprise-server; do
             src="${image}:sha-${SHA}"
-            dst="${image}:${safe_tag}"
             if ! docker buildx imagetools inspect "$src" > /dev/null 2>&1; then
               echo "::error::Source image $src does not exist. The Docker workflow for commit $SHA may not have completed successfully. Re-run this workflow once the build finishes."
               exit 1
             fi
-            echo "Tagging $dst -> $src"
-            docker buildx imagetools create -t "$dst" "$src"
+            targets=()
+            for t in "${new_tags[@]}"; do
+              targets+=("-t" "${image}:${t}")
+            done
+            echo "Tagging ${image}: ${new_tags[*]} -> $src"
+            docker buildx imagetools create "${targets[@]}" "$src"
           done
