@@ -90,6 +90,7 @@ class SaasConversationStore(ConversationStore):
         kwargs.pop('per_turn_token', None)
         kwargs.pop('parent_conversation_id', None)
         kwargs.pop('public')
+        kwargs.pop('agent_kind', None)
 
         return ConversationMetadata(**kwargs)
 
