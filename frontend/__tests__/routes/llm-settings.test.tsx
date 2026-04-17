@@ -717,9 +717,12 @@ describe("LlmSettingsScreen", () => {
       );
     });
 
-    expect(saveSettingsSpy.mock.calls[0][0].agent_settings.llm).not.toHaveProperty(
-      "timeout",
-    );
+    const payload = saveSettingsSpy.mock.calls[0]?.[0] as {
+      agent_settings?: {
+        llm?: Record<string, unknown>;
+      };
+    };
+    expect(payload.agent_settings?.llm).not.toHaveProperty("timeout");
   });
 
   it("clears hidden search API key state when saving basic view", async () => {
