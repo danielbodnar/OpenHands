@@ -79,5 +79,5 @@ These reference the V0 runtime image (`ghcr.io/openhands/runtime:X.Y-nikolaik`) 
 | Registry | Usage |
 |----------|-------|
 | `ghcr.io/openhands/agent-server` | V1 agent-server (sandbox) — built by SDK repo CI |
-| `ghcr.io/openhands/openhands` | Main app image — built by `ghcr-build.yml` |
+| `ghcr.io/openhands/openhands` | Main app image |
 | `docker.openhands.dev/openhands/*` | Mirror/CDN for the above images |
