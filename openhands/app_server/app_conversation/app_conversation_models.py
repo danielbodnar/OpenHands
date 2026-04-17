@@ -84,6 +84,15 @@ class AppConversationInfo(BaseModel):
     pr_number: list[int] = Field(default_factory=list)
     llm_model: str | None = None
 
+    # Discriminator for the agent variant that owns this conversation.
+    # Defaults to ``"llm"`` so rows persisted before the ACP variant
+    # shipped round-trip unchanged. Populated from the ``agent_kind`` on
+    # ``AgentSettings`` at conversation-start time. Downstream consumers
+    # (URL builder, live-status poller) branch on this to hit the right
+    # agent-server route — ``/api/conversations`` for ``"llm"``,
+    # ``/api/acp/conversations`` for ``"acp"``.
+    agent_kind: str = 'llm'
+
     metrics: MetricsSnapshot | None = None
 
     parent_conversation_id: OpenHandsUUID | None = None

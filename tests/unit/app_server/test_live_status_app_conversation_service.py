@@ -39,7 +39,12 @@ from openhands.integrations.service_types import SuggestedTask, TaskType
 from openhands.sdk import Agent, Event
 from openhands.sdk.llm import LLM
 from openhands.sdk.secret import LookupSecret, StaticSecret
-from openhands.sdk.settings import AgentSettings, ConversationSettings
+from openhands.sdk.settings import ConversationSettings
+
+try:
+    from openhands.sdk.settings import LLMAgentSettings as AgentSettings
+except ImportError:
+    from openhands.sdk.settings import AgentSettings
 from openhands.sdk.workspace.remote.async_remote_workspace import AsyncRemoteWorkspace
 from openhands.server.types import AppMode
 from openhands.storage.data_models.conversation_metadata import ConversationTrigger
@@ -3024,4 +3029,200 @@ class TestLoadHooksFromWorkspace:
                 'X-Session-API-Key': 'test-key',
             },
             timeout=30.0,
+        )
+
+
+class TestAcpProviderEnv:
+    """Unit tests for ``LiveStatusAppConversationService._acp_provider_env`` —
+    the helper that translates UI-saved LLM credentials into the
+    provider env vars the chosen ACP subprocess expects.
+    """
+
+    @pytest.fixture
+    def _acp_settings_factory(self):
+        from pydantic import SecretStr
+
+        try:
+            from openhands.sdk.settings import ACPAgentSettings  # type: ignore[attr-defined]
+        except ImportError:
+            pytest.skip('ACPAgentSettings not available in this SDK build')
+
+        def _make(
+            *,
+            acp_server: str = 'claude-code',
+            api_key: str | None = None,
+            base_url: str | None = None,
+            acp_env: dict[str, str] | None = None,
+        ):
+            return ACPAgentSettings(
+                acp_server=acp_server,  # type: ignore[arg-type]
+                llm=LLM(
+                    model='claude-sonnet-4-5',
+                    api_key=SecretStr(api_key) if api_key else None,
+                    base_url=base_url,
+                ),
+                acp_env=acp_env or {},
+            )
+
+        return _make
+
+    def test_claude_code_translates_to_anthropic_vars(self, _acp_settings_factory):
+        s = _acp_settings_factory(
+            acp_server='claude-code',
+            api_key='sk-test-anthropic',
+            base_url='https://proxy.example.com',
+        )
+        env = LiveStatusAppConversationService._acp_provider_env(s)
+        assert env == {
+            'ANTHROPIC_API_KEY': 'sk-test-anthropic',
+            'ANTHROPIC_BASE_URL': 'https://proxy.example.com',
+        }
+
+    def test_codex_translates_to_openai_vars(self, _acp_settings_factory):
+        s = _acp_settings_factory(
+            acp_server='codex',
+            api_key='sk-test-openai',
+            base_url='https://proxy.example.com',
+        )
+        env = LiveStatusAppConversationService._acp_provider_env(s)
+        assert env == {
+            'OPENAI_API_KEY': 'sk-test-openai',
+            'OPENAI_BASE_URL': 'https://proxy.example.com',
+        }
+
+    def test_gemini_translates_to_gemini_vars(self, _acp_settings_factory):
+        s = _acp_settings_factory(
+            acp_server='gemini-cli',
+            api_key='sk-test-gemini',
+            base_url='https://proxy.example.com',
+        )
+        env = LiveStatusAppConversationService._acp_provider_env(s)
+        assert env == {
+            'GEMINI_API_KEY': 'sk-test-gemini',
+            'GEMINI_BASE_URL': 'https://proxy.example.com',
+        }
+
+    def test_custom_server_returns_empty(self, _acp_settings_factory):
+        """For acp_server='custom', the user is on their own via acp_env."""
+        s = _acp_settings_factory(
+            acp_server='custom',
+            api_key='sk-test',
+            base_url='https://proxy.example.com',
+        )
+        env = LiveStatusAppConversationService._acp_provider_env(s)
+        assert env == {}
+
+    def test_no_credentials_returns_empty(self, _acp_settings_factory):
+        """No api_key + no base_url → nothing synthesized."""
+        s = _acp_settings_factory(acp_server='claude-code')
+        env = LiveStatusAppConversationService._acp_provider_env(s)
+        assert env == {}
+
+    def test_base_url_alone_is_ignored(self, _acp_settings_factory):
+        """base_url without api_key → no plumbing.
+
+        The LLM settings page persists a provider-default ``base_url``
+        as soon as the user picks a model. Plumbing that default would
+        clobber a real proxy URL set via ``OH_AGENT_SERVER_ENV`` and
+        silently route the ACP subprocess to the wrong endpoint with a
+        proxy key it can't use. Require an explicit ``api_key`` as the
+        user's opt-in signal before plumbing anything.
+        """
+        s = _acp_settings_factory(
+            acp_server='claude-code', base_url='https://api.anthropic.com'
+        )
+        env = LiveStatusAppConversationService._acp_provider_env(s)
+        assert env == {}
+
+    def test_api_key_alone_is_plumbed(self, _acp_settings_factory):
+        """api_key alone → plumb the key (provider default URL comes
+        from the SDK / OS env, not from us)."""
+        s = _acp_settings_factory(acp_server='claude-code', api_key='sk-test')
+        env = LiveStatusAppConversationService._acp_provider_env(s)
+        assert env == {'ANTHROPIC_API_KEY': 'sk-test'}
+
+
+class TestAgentKindConversationUrl:
+    """Regression tests for the conversation_url / live-status route
+    dispatch — ``/api/conversations`` for LLM, ``/api/acp/conversations``
+    for ACP. Getting this wrong makes ACP conversations look stuck on
+    "Loading" because the frontend polls the wrong route and 404s."""
+
+    def test_build_conversation_url_llm(self):
+        from uuid import UUID
+        from openhands.app_server.app_conversation.app_conversation_models import (
+            AppConversationInfo,
+        )
+        from openhands.app_server.sandbox.sandbox_models import (
+            AGENT_SERVER,
+            ExposedUrl,
+            SandboxInfo,
+            SandboxStatus,
+        )
+
+        # Instantiate a stripped service (no deps needed for _build_conversation).
+        service = LiveStatusAppConversationService.__new__(
+            LiveStatusAppConversationService
+        )
+
+        info = AppConversationInfo(
+            id=UUID('11111111-1111-1111-1111-111111111111'),
+            created_by_user_id=None,
+            sandbox_id='sandbox-a',
+            agent_kind='llm',
+        )
+        sandbox = SandboxInfo(
+            id='sandbox-a',
+            created_by_user_id=None,
+            sandbox_spec_id='spec',
+            status=SandboxStatus.RUNNING,
+            session_api_key='sk',
+            exposed_urls=[
+                ExposedUrl(name=AGENT_SERVER, url='http://localhost:8000', port=8000),
+            ],
+        )
+        result = service._build_conversation(info, sandbox, None)
+        assert result is not None
+        assert result.conversation_url == (
+            'http://localhost:8000/api/conversations/'
+            '11111111111111111111111111111111'
+        )
+
+    def test_build_conversation_url_acp(self):
+        from uuid import UUID
+        from openhands.app_server.app_conversation.app_conversation_models import (
+            AppConversationInfo,
+        )
+        from openhands.app_server.sandbox.sandbox_models import (
+            AGENT_SERVER,
+            ExposedUrl,
+            SandboxInfo,
+            SandboxStatus,
+        )
+
+        service = LiveStatusAppConversationService.__new__(
+            LiveStatusAppConversationService
+        )
+
+        info = AppConversationInfo(
+            id=UUID('22222222-2222-2222-2222-222222222222'),
+            created_by_user_id=None,
+            sandbox_id='sandbox-a',
+            agent_kind='acp',
+        )
+        sandbox = SandboxInfo(
+            id='sandbox-a',
+            created_by_user_id=None,
+            sandbox_spec_id='spec',
+            status=SandboxStatus.RUNNING,
+            session_api_key='sk',
+            exposed_urls=[
+                ExposedUrl(name=AGENT_SERVER, url='http://localhost:8000', port=8000),
+            ],
+        )
+        result = service._build_conversation(info, sandbox, None)
+        assert result is not None
+        assert result.conversation_url == (
+            'http://localhost:8000/api/acp/conversations/'
+            '22222222222222222222222222222222'
         )

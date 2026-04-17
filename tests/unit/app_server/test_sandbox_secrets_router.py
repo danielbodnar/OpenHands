@@ -36,7 +36,11 @@ from openhands.integrations.provider import ProviderHandler, ProviderToken
 from openhands.integrations.service_types import ProviderType
 from openhands.sdk.llm import LLM
 from openhands.sdk.secret import StaticSecret
-from openhands.sdk.settings import AgentSettings
+
+try:
+    from openhands.sdk.settings import LLMAgentSettings as AgentSettings
+except ImportError:
+    from openhands.sdk.settings import AgentSettings
 
 SANDBOX_ID = 'sb-test-123'
 USER_ID = 'test-user-id'

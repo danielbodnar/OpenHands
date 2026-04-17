@@ -11,7 +11,11 @@ from openhands.core.config.mcp_config import (
     StdioMCPServer,
 )
 from openhands.sdk.llm import LLM
-from openhands.sdk.settings import AgentSettings
+
+try:
+    from openhands.sdk.settings import LLMAgentSettings as AgentSettings
+except ImportError:
+    from openhands.sdk.settings import AgentSettings
 from openhands.storage.data_models.settings import Settings
 
 

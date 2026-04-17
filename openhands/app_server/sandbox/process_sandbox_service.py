@@ -134,22 +134,35 @@ class ProcessSandboxService(SandboxService):
         )
 
         try:
-            # Start the process
+            # Redirect stdout/stderr to a log file instead of ``PIPE``.
+            # With ``PIPE`` and no drain loop the subprocess deadlocks
+            # as soon as it fills the 64 KB OS pipe buffer — which
+            # happens quickly for chatty startups (SDK banner + debug
+            # logs + request traces). A file handle lets the child
+            # write freely and keeps the output around for post-mortem.
+            import os as _os
+            log_path = _os.path.join(working_dir, '.openhands-agent-server.log')
+            log_handle = open(log_path, 'a', buffering=1)
             process = subprocess.Popen(
                 cmd,
                 env=env,
                 cwd=working_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=log_handle,
+                stderr=log_handle,
             )
 
             # Wait a moment for the process to start
             await asyncio.sleep(1)
 
-            # Check if process is still running
+            # Check if process is still running; if it exited, surface the
+            # log file path so the operator can investigate. (We can't use
+            # ``communicate()`` any more — stdout/stderr are redirected to
+            # the log file above.)
             if process.poll() is not None:
-                stdout, stderr = process.communicate()
-                raise SandboxError(f'Agent process failed to start: {stderr.decode()}')
+                raise SandboxError(
+                    f'Agent process failed to start (exit code {process.returncode}). '
+                    f'See {log_path} for details.'
+                )
 
             return process
 

@@ -15,7 +15,24 @@ from openhands.integrations.provider import (
     PROVIDER_TOKEN_TYPE,
     ProviderType,
 )
-from openhands.sdk.settings import AgentSettings, ConversationSettings
+
+# ``export_agent_settings_schema`` is new in the discriminated-union rework.
+# Pre-commit mypy pins ``openhands-sdk==1.17.0``; the editable install
+# exposes it. Remove the ignore once the SDK ships.
+from openhands.sdk.settings import ConversationSettings
+
+try:
+    from openhands.sdk.settings import (  # type: ignore[attr-defined]
+        export_agent_settings_schema,
+    )
+except ImportError:
+    # Fallback for SDK 1.17.0: export only AgentSettings schema (no ACP).
+    from openhands.sdk.settings import AgentSettings
+
+    def export_agent_settings_schema():  # type: ignore[misc]
+        return AgentSettings.export_schema()
+
+
 from openhands.server.routes.secrets import invalidate_legacy_secrets_store
 from openhands.server.settings import (
     GETSettingsModel,
@@ -239,8 +256,14 @@ async def store_settings(
 
 @router.get('/agent-schema')
 async def load_settings_schema() -> dict[str, Any]:
-    """Load the schema for settings"""
-    return AgentSettings.export_schema().model_dump(mode='json')
+    """Load the schema for settings.
+
+    ``AgentSettings`` is a discriminated union over ``LLMAgentSettings``
+    and ``ACPAgentSettings``; the combined schema tags sections with a
+    ``variant`` field so the frontend can show LLM-only or ACP-only
+    sections based on the active ``agent_kind`` value.
+    """
+    return export_agent_settings_schema().model_dump(mode='json')
 
 
 @router.get('/conversation-schema')

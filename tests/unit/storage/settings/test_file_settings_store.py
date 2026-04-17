@@ -6,7 +6,12 @@ from pydantic import SecretStr
 
 from openhands.core.config.openhands_config import OpenHandsConfig
 from openhands.sdk.llm import LLM
-from openhands.sdk.settings import AgentSettings, ConversationSettings
+from openhands.sdk.settings import ConversationSettings
+
+try:
+    from openhands.sdk.settings import LLMAgentSettings as AgentSettings
+except ImportError:
+    from openhands.sdk.settings import AgentSettings
 from openhands.storage.data_models.settings import Settings
 from openhands.storage.files import FileStore
 from openhands.storage.settings.file_settings_store import FileSettingsStore

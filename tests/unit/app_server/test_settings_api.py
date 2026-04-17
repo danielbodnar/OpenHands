@@ -10,10 +10,14 @@ from openhands.integrations.provider import ProviderToken, ProviderType
 from openhands.integrations.service_types import UserGitInfo
 from openhands.sdk.llm import LLM
 from openhands.sdk.settings import (
-    AgentSettings,
     ConversationSettings,
     VerificationSettings,
 )
+
+try:
+    from openhands.sdk.settings import LLMAgentSettings as AgentSettings
+except ImportError:
+    from openhands.sdk.settings import AgentSettings
 from openhands.server.app import app
 from openhands.server.user_auth.user_auth import UserAuth
 from openhands.storage.data_models.secrets import Secrets
