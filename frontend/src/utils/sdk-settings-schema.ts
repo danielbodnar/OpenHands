@@ -412,15 +412,14 @@ export function buildSdkSettingsPayloadForView(
   dirty: SettingsDirtyState,
   view: SettingsView,
 ): SdkSettingsPayload {
-  const payload: Record<string, unknown> = {};
+  const payload = buildSdkSettingsPayload(schema, values, dirty) as Record<
+    string,
+    unknown
+  >;
 
   for (const field of getSchemaFields(schema)) {
-    if (
-      dirty[field.key] &&
-      isFieldVisibleInView(field, view) &&
-      isSettingsFieldVisible(field, values)
-    ) {
-      setDotted(payload, field.key, coerceFieldValue(field, values[field.key]));
+    if (!isFieldVisibleInView(field, view)) {
+      setDotted(payload, field.key, field.default ?? null);
     }
   }
 
