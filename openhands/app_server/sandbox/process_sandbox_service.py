@@ -133,23 +133,25 @@ class ProcessSandboxService(SandboxService):
             f'Starting agent process for sandbox {sandbox_id}: {" ".join(cmd)}'
         )
 
+        # Redirect stdout/stderr to a log file instead of ``PIPE``. With
+        # ``PIPE`` and no drain loop the subprocess deadlocks as soon as
+        # it fills the 64 KB OS pipe buffer — chatty startups (SDK
+        # banner + debug logs + request traces) hit that quickly. A
+        # file handle lets the child write freely and keeps the output
+        # around for post-mortem.
+        log_path = os.path.join(working_dir, '.openhands-agent-server.log')
         try:
-            # Redirect stdout/stderr to a log file instead of ``PIPE``.
-            # With ``PIPE`` and no drain loop the subprocess deadlocks
-            # as soon as it fills the 64 KB OS pipe buffer — which
-            # happens quickly for chatty startups (SDK banner + debug
-            # logs + request traces). A file handle lets the child
-            # write freely and keeps the output around for post-mortem.
-            import os as _os
-            log_path = _os.path.join(working_dir, '.openhands-agent-server.log')
-            log_handle = open(log_path, 'a', buffering=1)
-            process = subprocess.Popen(
-                cmd,
-                env=env,
-                cwd=working_dir,
-                stdout=log_handle,
-                stderr=log_handle,
-            )
+            # ``with`` closes the parent's handle after ``Popen`` dup's
+            # the fd into the child. Without this the parent leaks one
+            # fd per sandbox start — exhausts the fd table under load.
+            with open(log_path, 'a', buffering=1) as log_handle:
+                process = subprocess.Popen(
+                    cmd,
+                    env=env,
+                    cwd=working_dir,
+                    stdout=log_handle,
+                    stderr=log_handle,
+                )
 
             # Wait a moment for the process to start
             await asyncio.sleep(1)

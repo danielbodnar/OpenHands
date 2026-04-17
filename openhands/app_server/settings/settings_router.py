@@ -16,24 +16,9 @@ from openhands.integrations.provider import (
     ProviderType,
 )
 
-# ``export_agent_settings_schema`` is new in the discriminated-union rework.
-# Pre-commit mypy pins ``openhands-sdk==1.17.0``; the editable install
-# exposes it. Remove the ignore once the SDK ships.
 from openhands.sdk.settings import ConversationSettings
-
-try:
-    from openhands.sdk.settings import (  # type: ignore[attr-defined]
-        export_agent_settings_schema,
-    )
-except ImportError:
-    # Fallback for SDK 1.17.0: export only AgentSettings schema (no ACP).
-    from openhands.sdk.settings import AgentSettings
-
-    def export_agent_settings_schema():  # type: ignore[misc]
-        return AgentSettings.export_schema()
-
-
 from openhands.server.routes.secrets import invalidate_legacy_secrets_store
+from openhands.utils.sdk_settings_compat import export_agent_settings_schema
 from openhands.server.settings import (
     GETSettingsModel,
 )

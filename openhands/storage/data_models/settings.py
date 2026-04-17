@@ -17,38 +17,14 @@ from pydantic import (
 from openhands.core.config.llm_config import LLMConfig
 from openhands.core.config.utils import load_openhands_config
 
-# The LLM/ACP variant types, ``AgentSettingsConfig`` union alias, and the
-# validate/default helpers are new in the discriminated-union rework.
-# Pre-commit mypy pins ``openhands-sdk==1.17.0`` (without these symbols);
-# the editable install exposes them. Remove the ignore once the SDK ships.
-#
-# Note: ``AgentSettings`` is retained as a deprecated v1.17-compat class
-# alias for ``LLMAgentSettings``. ``AgentSettingsConfig`` is the union
-# type for fields that may hold either variant — use that in new code.
 from openhands.sdk.settings import ConversationSettings
-
-try:
-    from openhands.sdk.settings import (  # type: ignore[attr-defined]
-        ACPAgentSettings,
-        AgentSettingsConfig,
-        LLMAgentSettings,
-        default_agent_settings,
-        validate_agent_settings,
-    )
-except ImportError:
-    # Fallback for SDK 1.17.0 which doesn't have the new discriminated union
-    # types. SDK 1.17.0 uses ``AgentSettings`` instead of ``LLMAgentSettings``.
-    from openhands.sdk.settings import AgentSettings
-
-    LLMAgentSettings = AgentSettings  # type: ignore[misc, assignment]
-    ACPAgentSettings = AgentSettings  # type: ignore[misc, assignment]
-    AgentSettingsConfig = AgentSettings  # type: ignore[misc, assignment]
-
-    def default_agent_settings() -> AgentSettings:  # type: ignore[misc]
-        return AgentSettings()
-
-    def validate_agent_settings(data: dict) -> AgentSettings:  # type: ignore[misc]
-        return AgentSettings.model_validate(data)
+from openhands.utils.sdk_settings_compat import (
+    ACPAgentSettings,
+    AgentSettingsConfig,
+    LLMAgentSettings,
+    default_agent_settings,
+    validate_agent_settings,
+)
 
 
 from openhands.storage.data_models.secrets import Secrets

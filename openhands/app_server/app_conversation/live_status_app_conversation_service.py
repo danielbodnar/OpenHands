@@ -95,23 +95,9 @@ from openhands.sdk.llm import LLM
 from openhands.sdk.plugin import PluginSource
 from openhands.sdk.secret import LookupSecret, StaticSecret
 
-# ``ACPAgentSettings`` is new in the discriminated-union rework. Pre-commit
-# mypy pins ``openhands-sdk==1.17.0`` (without this symbol); the editable
-# install exposes it. Remove the ignore once the SDK ships.
-try:
-    from openhands.sdk.settings import ACPAgentSettings  # type: ignore[attr-defined]
-except ImportError:
-    # Fallback for SDK 1.17.0: ACP paths will never be taken since
-    # ACPAgentSettings won't exist. We define a private sentinel class so
-    # isinstance() checks compile.
-    class _ACPAgentSettingsStub:
-        """Placeholder that will never match any runtime instance."""
-
-        pass
-
-    ACPAgentSettings = _ACPAgentSettingsStub  # type: ignore[misc, assignment]
 from openhands.sdk.utils.paging import page_iterator
 from openhands.sdk.workspace.remote.async_remote_workspace import AsyncRemoteWorkspace
+from openhands.utils.sdk_settings_compat import ACPAgentSettings
 from openhands.server.types import AppMode
 from openhands.storage.data_models.conversation_metadata import ConversationTrigger
 from openhands.storage.data_models.settings import SandboxGroupingStrategy
@@ -141,6 +127,28 @@ After you finalize the plan in PLAN.md:
 
 Your role ends when the plan is finalized. Implementation is handled by the code agent.
 </IMPORTANT_PLANNING_BOUNDARIES>"""
+
+
+def _agent_kind_to_router_path(agent_kind: str | None) -> str:
+    """Map an ``agent_kind`` to the agent-server conversation router path.
+
+    - ``'acp'`` → ``/api/acp/conversations``
+    - ``'llm'`` / ``None`` (legacy rows) → ``/api/conversations``
+    - Anything else logs a warning and falls back to the LLM path.
+      Routing an unknown kind to ACP would 404 in more cases; routing
+      it to LLM at least lets the GET surface a readable error instead
+      of a 404 on a nonexistent router.
+    """
+    if agent_kind == 'acp':
+        return '/api/acp/conversations'
+    if agent_kind not in (None, 'llm'):
+        _logger.warning(
+            'Unknown agent_kind %r; routing to /api/conversations. '
+            'Add a branch to _agent_kind_to_router_path if this is a '
+            'new variant.',
+            agent_kind,
+        )
+    return '/api/conversations'
 
 
 @dataclass
@@ -591,11 +599,7 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
                 # because it only accepts the LLM-agent variant. The frontend
                 # polls ``conversation_url`` for live status, so pointing it
                 # at the wrong route makes ACP conversations look stuck.
-                path = (
-                    '/api/acp/conversations'
-                    if app_conversation_info.agent_kind == 'acp'
-                    else '/api/conversations'
-                )
+                path = _agent_kind_to_router_path(app_conversation_info.agent_kind)
                 conversation_url += f'{path}/{app_conversation_info.id.hex}'
             session_api_key = sandbox.session_api_key
 
@@ -1488,9 +1492,18 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
         api_key: str | None = None
         if llm.api_key is not None:
             raw = llm.api_key
-            api_key = (
-                raw.get_secret_value() if hasattr(raw, 'get_secret_value') else str(raw)
-            )
+            if isinstance(raw, SecretStr):
+                api_key = raw.get_secret_value()
+            elif isinstance(raw, str):
+                api_key = raw
+            else:
+                # Unknown type — refuse rather than risk leaking the
+                # repr into env vars. (``str(SecretStr)`` yields the
+                # redacted ``**********`` placeholder, not the secret.)
+                raise TypeError(
+                    f'Unexpected type for llm.api_key: {type(raw).__name__}; '
+                    'expected SecretStr or str.'
+                )
 
         # Without an explicit api_key the user hasn't opted in — don't
         # synthesize anything, don't touch base_url. See class docstring.

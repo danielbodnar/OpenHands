@@ -3141,6 +3141,20 @@ class TestAcpProviderEnv:
         env = LiveStatusAppConversationService._acp_provider_env(s)
         assert env == {'ANTHROPIC_API_KEY': 'sk-test'}
 
+    def test_unexpected_api_key_type_raises(self, _acp_settings_factory):
+        """Anything other than ``SecretStr`` / ``str`` for the api_key
+        raises. ``str(SecretStr)`` yields ``**********``; silently
+        falling back would plumb the placeholder as the credential.
+        """
+        s = _acp_settings_factory(acp_server='claude-code', api_key='sk-test')
+        # Swap in a non-string, non-SecretStr sentinel to simulate a
+        # future LLM config that stores api_key as (e.g.) a Provider
+        # object. Bypass Pydantic validation via __dict__.
+        s.llm.__dict__['api_key'] = object()  # type: ignore[assignment]
+
+        with pytest.raises(TypeError, match='Unexpected type for llm.api_key'):
+            LiveStatusAppConversationService._acp_provider_env(s)
+
 
 class TestAgentKindConversationUrl:
     """Regression tests for the conversation_url / live-status route
@@ -3226,3 +3240,32 @@ class TestAgentKindConversationUrl:
             'http://localhost:8000/api/acp/conversations/'
             '22222222222222222222222222222222'
         )
+
+    def test_agent_kind_to_router_path_known_kinds(self):
+        """``'llm'`` / ``None`` → legacy route, ``'acp'`` → ACP route."""
+        from openhands.app_server.app_conversation.live_status_app_conversation_service import (  # noqa: E501
+            _agent_kind_to_router_path,
+        )
+
+        assert _agent_kind_to_router_path('llm') == '/api/conversations'
+        assert _agent_kind_to_router_path(None) == '/api/conversations'
+        assert _agent_kind_to_router_path('acp') == '/api/acp/conversations'
+
+    def test_agent_kind_to_router_path_unknown_warns_and_falls_back(self):
+        """Unknown variants warn and fall back to the LLM route.
+
+        Routing an unknown kind to ACP would 404 in more cases; the LLM
+        route at least returns a readable 4xx instead of a bare 404.
+        """
+        from unittest.mock import patch
+
+        from openhands.app_server.app_conversation import (  # noqa: E501
+            live_status_app_conversation_service as service_module,
+        )
+
+        with patch.object(service_module._logger, 'warning') as mock_warning:
+            path = service_module._agent_kind_to_router_path('future-variant')
+
+        assert path == '/api/conversations'
+        mock_warning.assert_called_once()
+        assert 'future-variant' in str(mock_warning.call_args)
