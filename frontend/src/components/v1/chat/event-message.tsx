@@ -21,7 +21,6 @@ import {
   GenericEventMessageWrapper,
   ThoughtEventMessage,
   HookExecutionEventMessage,
-  ACPToolCallEventMessage,
 } from "./event-message-components";
 import { createSkillReadyEvent } from "./event-content-helpers/create-skill-ready-event";
 import { PlanPreview } from "../../features/chat/plan-preview";
@@ -154,8 +153,12 @@ export function EventMessage({
   }
 
   // ACP sub-agent tool call events (Claude Code, Codex, Gemini CLI, …)
+  // render through the same generic wrapper used for observation events so
+  // the card shape, success indicator and markdown rendering all match.
   if (isACPToolCallEvent(event)) {
-    return <ACPToolCallEventMessage event={event} />;
+    return (
+      <GenericEventMessageWrapper event={event} isLastMessage={isLastMessage} />
+    );
   }
 
   // Finish actions
