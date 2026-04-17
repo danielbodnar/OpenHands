@@ -16,8 +16,8 @@ from openhands.core.logger import openhands_logger as logger
 from openhands.server.user_auth import get_user_id
 
 router = APIRouter(
-    prefix="/analytics",
-    tags=["Analytics"],
+    prefix='/analytics',
+    tags=['Analytics'],
     dependencies=get_dependencies(),
 )
 
@@ -28,7 +28,7 @@ class TrackEventRequest(BaseModel):
     event: str = Field(..., description="Event name (e.g., 'saas_selfhosted_inquiry')")
     properties: dict[str, Any] = Field(
         default_factory=dict,
-        description="Event properties",
+        description='Event properties',
     )
 
 
@@ -38,7 +38,7 @@ class TrackEventResponse(BaseModel):
     status: str
 
 
-@router.post("/track", response_model=TrackEventResponse)
+@router.post('/track', response_model=TrackEventResponse)
 async def track_event(
     request: TrackEventRequest,
     user_id: str | None = Depends(get_user_id),
@@ -50,7 +50,7 @@ async def track_event(
     """
     analytics = get_analytics_service()
     if not analytics:
-        return TrackEventResponse(status="analytics_disabled")
+        return TrackEventResponse(status='analytics_disabled')
 
     if user_id:
         try:
@@ -59,12 +59,12 @@ async def track_event(
             consented = ctx.consented
             org_id = ctx.org_id
         except Exception:
-            logger.warning("analytics:track:resolve_context_failed user_id=%s", user_id)
+            logger.warning('analytics:track:resolve_context_failed user_id=%s', user_id)
             distinct_id = user_id
             consented = False
             org_id = None
     else:
-        distinct_id = "anonymous"
+        distinct_id = 'anonymous'
         consented = False
         org_id = None
 
@@ -76,7 +76,7 @@ async def track_event(
             org_id=org_id,
             consented=consented,
         )
-        return TrackEventResponse(status="tracked")
+        return TrackEventResponse(status='tracked')
     except Exception:
-        logger.exception("analytics:track:capture_failed event=%s", request.event)
-        return TrackEventResponse(status="error")
+        logger.exception('analytics:track:capture_failed event=%s', request.event)
+        return TrackEventResponse(status='error')

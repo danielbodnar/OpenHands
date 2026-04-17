@@ -22,7 +22,7 @@ from openhands.app_server.user import skills_router, user_router
 from openhands.app_server.web_client import web_client_router
 
 # Include routers
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix='/api/v1')
 router.include_router(analytics_router)
 router.include_router(event_router.router)
 router.include_router(app_conversation_router.router)
