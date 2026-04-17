@@ -3043,7 +3043,9 @@ class TestAcpProviderEnv:
         from pydantic import SecretStr
 
         try:
-            from openhands.sdk.settings import ACPAgentSettings  # type: ignore[attr-defined]
+            from openhands.sdk.settings import (
+                ACPAgentSettings,  # type: ignore[attr-defined]
+            )
         except ImportError:
             pytest.skip('ACPAgentSettings not available in this SDK build')
 
@@ -3164,6 +3166,7 @@ class TestAgentKindConversationUrl:
 
     def test_build_conversation_url_llm(self):
         from uuid import UUID
+
         from openhands.app_server.app_conversation.app_conversation_models import (
             AppConversationInfo,
         )
@@ -3198,12 +3201,12 @@ class TestAgentKindConversationUrl:
         result = service._build_conversation(info, sandbox, None)
         assert result is not None
         assert result.conversation_url == (
-            'http://localhost:8000/api/conversations/'
-            '11111111111111111111111111111111'
+            'http://localhost:8000/api/conversations/11111111111111111111111111111111'
         )
 
     def test_build_conversation_url_acp(self):
         from uuid import UUID
+
         from openhands.app_server.app_conversation.app_conversation_models import (
             AppConversationInfo,
         )

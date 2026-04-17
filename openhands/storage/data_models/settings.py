@@ -16,8 +16,9 @@ from pydantic import (
 
 from openhands.core.config.llm_config import LLMConfig
 from openhands.core.config.utils import load_openhands_config
-
 from openhands.sdk.settings import ConversationSettings
+from openhands.storage.data_models.secrets import Secrets
+from openhands.utils.jsonpatch_compat import deep_merge
 from openhands.utils.sdk_settings_compat import (
     ACPAgentSettings,
     AgentSettingsConfig,
@@ -25,10 +26,6 @@ from openhands.utils.sdk_settings_compat import (
     default_agent_settings,
     validate_agent_settings,
 )
-
-
-from openhands.storage.data_models.secrets import Secrets
-from openhands.utils.jsonpatch_compat import deep_merge
 
 
 def _coerce_value(value: Any) -> Any:

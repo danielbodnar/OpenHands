@@ -15,10 +15,8 @@ from openhands.integrations.provider import (
     PROVIDER_TOKEN_TYPE,
     ProviderType,
 )
-
 from openhands.sdk.settings import ConversationSettings
 from openhands.server.routes.secrets import invalidate_legacy_secrets_store
-from openhands.utils.sdk_settings_compat import export_agent_settings_schema
 from openhands.server.settings import (
     GETSettingsModel,
 )
@@ -33,6 +31,7 @@ from openhands.storage.data_models.settings import Settings
 from openhands.storage.secrets.secrets_store import SecretsStore
 from openhands.storage.settings.settings_store import SettingsStore
 from openhands.utils.llm import get_provider_api_base, is_openhands_model
+from openhands.utils.sdk_settings_compat import export_agent_settings_schema
 
 LITE_LLM_API_URL = os.environ.get(
     'LITE_LLM_API_URL', 'https://llm-proxy.app.all-hands.dev'
